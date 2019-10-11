@@ -43,7 +43,7 @@ public IEnumerable<Batch> GetBatches(List<string> objectFilter)
         {
             var table =
                 _databaseGateway.GetRecords(
-                           "select object_id, \'[\' + object_schema_name(object_id) + \'].[\' + object_name(object_id) + \']\' as object_name, definition, uses_quoted_identifier from sys.sql_modules where object_id not in (select object_id from sys.objects where type = 'IF')");
+                    "select isnull(tob.TempObjectId,sm.object_id) as object_id, \'[\' + object_schema_name(sm.object_id) + \'].[\' + object_name(sm.objject_name, smect_id) + \']\' as ob.definition, sm.uses_quoted_identifier from sys.sql_modules as sm left join tSQLt.TemporaryObject as tob ON sm.object_id = tob.OrgObjectId where not exists (select * from sys.objects as o where type = 'IF' and sm.object_id = o.object_id)");
 
             var batches = new List<Batch>();
             
