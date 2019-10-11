@@ -1,40 +1,65 @@
 ﻿using System;
+using System.IO;
 using System.Xml;
 
 namespace SQLCover.IntegrationTests
 {
     class ConnectionStringReader
     {
-        private static string Get(string name)
+        private static string GetPipeName()
         {
-            var xmldoc = new XmlDocument();
-            xmldoc.Load(GetFilename());
-            XmlNodeList nodes = xmldoc.GetElementsByTagName("add");
-            foreach (XmlNode node in nodes)
-                if (node.Attributes["name"].Value == name)
-                    return node.Attributes["connectionString"].Value;
-            throw new Exception();
+
+            var processInfo = new System.Diagnostics.ProcessStartInfo();
+            processInfo.Arguments = "-Command \"&{ (sqllocaldb i SQLCover |%{ if ($_.Contains('pipe')){$_} }).Split(':')[2]}\"";
+            
+            processInfo.FileName = "powershell.exe";
+            processInfo.RedirectStandardOutput = true;
+            processInfo.UseShellExecute = false;
+
+            var process = System.Diagnostics.Process.Start(processInfo);
+            process.WaitForExit();
+            return process.StandardOutput.ReadToEnd().Replace("\r", "").Replace("\n", "");
+
         }
+
+        private static string GetContainerIP()
+        {
+
+            var processInfo = new System.Diagnostics.ProcessStartInfo();
+            processInfo.Arguments = "-Command \"&{ (docker inspect SQLCover | ConvertFrom-Json).NetworkSettings.Networks.nat.IPAddress}\"";
+
+            processInfo.FileName = "powershell.exe";
+            processInfo.RedirectStandardOutput = true;
+            processInfo.UseShellExecute = false;
+
+            var process = System.Diagnostics.Process.Start(processInfo);
+            process.WaitForExit();
+            return process.StandardOutput.ReadToEnd().Replace("\r", "").Replace("\n", "");
+
+        }
+        
+
 
 
         public static string GetIntegration()
         {
-            return Get("Integration");
+            ///This is a text file with a single line of text with the connection string
+            ///   I know it is weird but simple :)
+            var localOverrideFile =  Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConnectionString.user.config");
+
+
+            if (File.Exists(localOverrideFile))
+            {
+                return File.ReadAllText(localOverrideFile);
+            }
+            else
+            {
+                // var connectionString = $"Server=np:{GetPipeName()};integrated security=sspi;initial catalog=DatabaseProject";
+                var connectionString = $"Server=tcp:{GetContainerIP()};uid=sa;pwd=Psgsgsfsfs!!!!!;initial catalog=DatabaseProject";
+                return connectionString;
+            }
         }
         
-        private static string GetFilename()
-        {
-            //If available use the user file
-            if (System.IO.File.Exists("ConnectionString.user.config"))
-            {
-                return "ConnectionString.user.config";
-            }
-            else if (System.IO.File.Exists("ConnectionString.config"))
-            {
-                return "ConnectionString.config";
-            }
-            return "";
-        }
         
     }
 }

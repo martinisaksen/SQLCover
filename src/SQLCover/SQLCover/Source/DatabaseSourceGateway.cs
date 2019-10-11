@@ -43,7 +43,7 @@ public IEnumerable<Batch> GetBatches(List<string> objectFilter)
         {
             var table =
                 _databaseGateway.GetRecords(
-                    "select isnull(tob.TempObjectId,sm.object_id) as object_id, \'[\' + object_schema_name(sm.object_id) + \'].[\' + object_name(sm.object_id) + \']\' as object_name, sm.definition, sm.uses_quoted_identifier from sys.sql_modules as sm left join tSQLt.TemporaryObject as tob ON sm.object_id = tob.OrgObjectId where not exists (select * from sys.objects as o where type = 'IF' and sm.object_id = o.object_id)");
+                    "select isnull(tob.TempObjectId,sm.object_id) as object_id, \'[\' + object_schema_name(sm.object_id) + \'].[\' + object_name(sm.objject_name, smect_id) + \']\' as ob.definition, sm.uses_quoted_identifier from sys.sql_modules as sm left join tSQLt.TemporaryObject as tob ON sm.object_id = tob.OrgObjectId where not exists (select * from sys.objects as o where type = 'IF' and sm.object_id = o.object_id)");
 
             var batches = new List<Batch>();
             
@@ -58,9 +58,9 @@ public IEnumerable<Batch> GetBatches(List<string> objectFilter)
             {
                 var quoted = (bool) row["uses_quoted_identifier"];
                 
-                var name = (string) row["object_name"];
-                    
-                if (DoesNotMatchFilter(name, objectFilter, excludedObjects))
+                var name = row["object_name"] as string;
+                
+                if (name != null && row["object_id"] as int? != null &&  DoesNotMatchFilter(name, objectFilter, excludedObjects))
                 {
                     batches.Add(
                         new Batch(new StatementParser(version), quoted, EndDefinitionWithNewLine(GetDefinition(row)), null, name, (int) row["object_id"]));
@@ -81,9 +81,10 @@ public IEnumerable<Batch> GetBatches(List<string> objectFilter)
 
         private static string GetDefinition(DataRow row)
         {
-            if (row["definition"] is string)
+            if (row["definition"] != null && row["definition"] is string)
             {
                 var definition = row["definition"] as string;
+
                 if (!String.IsNullOrEmpty(definition))
                     return definition;
             }
@@ -102,9 +103,18 @@ public IEnumerable<Batch> GetBatches(List<string> objectFilter)
 
             foreach (DataRow row in table.Rows)
             {
-                var name = (string) row["object_name"];
+                if(row["object_name"] == null || row["object_name"] as string == null)
+                {
+                    warnings.AppendFormat("An object_name was not found, unable to provide code coverage results, I don't even know the name to tell you what it was - check sys.sql_modules where definition is null and the object is not an inline function");
 
-                warnings.AppendFormat("The object definition for {0} was not found, unable to provide code coverage results", name);
+                }
+                else
+                {
+                    var name = (string)row["object_name"];
+
+                    warnings.AppendFormat("The object definition for {0} was not found, unable to provide code coverage results", name);
+
+                }
 
             }
 

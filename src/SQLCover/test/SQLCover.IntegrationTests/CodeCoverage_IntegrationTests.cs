@@ -2,16 +2,19 @@
 using System.Data.SqlClient;
 using NUnit.Framework;
 using TestLib;
+using System.Threading;
 
 namespace SQLCover.IntegrationTests
 {
     [TestFixture]
+    [Apartment(ApartmentState.STA)]
     public class CodeCoverage_IntegrationTests : SQLCoverTest
     {
+
         [Test]
         public void Can_Get_All_Batches()
-        {
-            var coverage = new CodeCoverage(ConnectionStringReader.GetIntegration(), TestDatabaseName);
+        {            
+            var coverage = new CodeCoverage(ConnectionStringReader.GetIntegration(), TestDatabaseName, null, true, false);
             var results = coverage.Cover("select 1");
 
             Assert.IsNotNull(results);
@@ -48,7 +51,7 @@ namespace SQLCover.IntegrationTests
             {
                 coverage.Cover("WAITFOR DELAY '1:00:00'", 1);
             }
-            catch (System.Data.SqlClient.SqlException e)
+            catch (SqlException e)
             {
                 if (e.Number == -2)
                 {
@@ -60,7 +63,6 @@ namespace SQLCover.IntegrationTests
         }
 
         [Test]
-      //  [Ignore("Not sure why failing. Feedback from GoEddie needed.")]
         public void Code_Coverage_Includes_Last_Statement_Of_Large_Procedure()
         {
             var coverage = new CodeCoverage(ConnectionStringReader.GetIntegration(), TestDatabaseName);
@@ -79,8 +81,31 @@ namespace SQLCover.IntegrationTests
 
             Assert.That(result.CoveredStatementCount, Is.EqualTo(2));
 
-            var xml = result.OpenCoverXml();
+            var xml = result.OpenCoverXml();           
+
+        }
+
+        [Test]
+        public void Code_Coverage_Excludes_Label_From_Lines_That_Can_Be_Covered()
+        {
+            var coverage = new CodeCoverage(ConnectionStringReader.GetIntegration(), TestDatabaseName);
+            coverage.Start();
+            using (var con = new SqlConnection(ConnectionStringReader.GetIntegration()))
+            {
+                con.Open();
+                using (var cmd = con.CreateCommand())
+                {
+                    cmd.CommandText = "exec [dbo].[a_procedure_with_goto]";
+                    cmd.ExecuteNonQuery();
+                }
+            }
+
+            var result = coverage.Stop();
             
+            
+            Assert.That(result.CoveredStatementCount, Is.EqualTo(4));
+            Assert.That(result.StatementCount, Is.EqualTo(22));
+            var xml = result.OpenCoverXml();
 
         }
 
@@ -101,7 +126,7 @@ namespace SQLCover.IntegrationTests
 
             var result = coverage.Stop();
 
-            Assert.That(result.RawXml(), Is.StringContaining("HitCount=\"1\""));
+            Assert.That(result.RawXml().Contains("HitCount=\"1\""), Is.True);
         }
 
         [Test]
