@@ -62,11 +62,12 @@ namespace SQLCover
             _source = new DatabaseSourceGateway(_database);
         }
 
-        public bool Start()
+        public bool Start(int timeOut = 30)
         {
             Exception = null;
             try
             {
+                _database.TimeOut = timeOut;
                 _trace = new TraceControllerBuilder().GetTraceController(_database, _databaseName, _traceType);
                 _trace.Start();
                 IsStarted = true;
@@ -101,7 +102,7 @@ namespace SQLCover
 
             var results = StopInternal();
 
-            GenerateResults(_excludeFilter, results);
+            GenerateResults(_excludeFilter, results, new List<string>(), "SQLCover result of running external process");
 
             return _result;
         }
@@ -112,19 +113,24 @@ namespace SQLCover
                 Console.WriteLine(message, args);
         }
 
-        public CoverageResult Cover(string command, int timeOut =30)
+        public CoverageResult Cover(string command, int timeOut = 30)
         {
 
-        Debug("Starting Code Coverage");
+            Debug("Starting Code Coverage");
+
+            _database.TimeOut = timeOut;
 
             if (!Start())
             {
                 throw new SqlCoverException("Unable to start the trace - errors are recorded in the debug output");
 
             }
+
             Debug("Starting Code Coverage...Done");
 
             Debug("Executing Command: {0}", command);
+
+            var sqlExceptions = new List<string>();
 
             try
             {
@@ -136,6 +142,8 @@ namespace SQLCover
                 {
                     throw;
                 }
+
+                sqlExceptions.Add(e.Message);
             }
             catch (Exception e)
             {
@@ -151,7 +159,7 @@ namespace SQLCover
                 Debug("Stopping Code Coverage...done");
 
                 Debug("Getting Code Coverage Result");
-                GenerateResults(_excludeFilter, rawEvents);
+                GenerateResults(_excludeFilter, rawEvents, sqlExceptions, $"SQLCover result of running '{command}'");
                 Debug("Getting Code Coverage Result..done");
             }
             catch (Exception e)
@@ -180,7 +188,7 @@ namespace SQLCover
                 Debug("Stopping Code Coverage...done");
 
                 Debug("Getting Code Coverage Result");
-                GenerateResults(_excludeFilter, rawEvents);
+                GenerateResults(_excludeFilter, rawEvents, new List<string>(), $"SQLCover result of running {exe} {args}");
                 Debug("Getting Code Coverage Result..done");
                 
             }
@@ -210,10 +218,10 @@ namespace SQLCover
         }
 
 
-        private void GenerateResults(List<string> filter, List<string> xml)
+        private void GenerateResults(List<string> filter, List<string> xml, List<string> sqlExceptions, string commandDetail)
         {
             var batches = _source.GetBatches(filter);
-            _result = new CoverageResult(batches, xml, _databaseName, _database.DataSource);
+            _result = new CoverageResult(batches, xml, _databaseName, _database.DataSource, sqlExceptions, commandDetail);
         }
 
         public CoverageResult Results()

@@ -104,7 +104,7 @@ namespace SQLCover.IntegrationTests
             
             
             Assert.That(result.CoveredStatementCount, Is.EqualTo(4));
-            Assert.That(result.StatementCount, Is.EqualTo(22));
+            Assert.That(result.StatementCount, Is.EqualTo(24));
             var xml = result.OpenCoverXml();
 
         }
@@ -131,26 +131,6 @@ namespace SQLCover.IntegrationTests
 
         [Test]
         public void Code_Coverage_Covers_Set_Statements()
-        {
-            var coverage = new CodeCoverage(ConnectionStringReader.GetIntegration(), TestDatabaseName);
-            coverage.Start();
-            using (var con = new SqlConnection(ConnectionStringReader.GetIntegration()))
-            {
-                con.Open();
-                using (var cmd = con.CreateCommand())
-                {
-                    cmd.CommandText = "exec [dbo].[set_statements]";
-                    cmd.ExecuteNonQuery();
-                }
-            }
-
-            var result = coverage.Stop();
-
-            Assert.AreEqual(5, result.CoveredStatementCount);   //not sure why SET QUOTED_IDENTIFIER ON is not covered - don't get xevent on 2008
-        }
-
-        [Test]
-        public void Code_Coverage_Covers_Last_Statement()
         {
             var coverage = new CodeCoverage(ConnectionStringReader.GetIntegration(), TestDatabaseName);
             coverage.Start();

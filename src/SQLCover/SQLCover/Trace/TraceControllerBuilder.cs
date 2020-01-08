@@ -1,5 +1,4 @@
 using System;
-using Microsoft.SqlServer.TransactSql.ScriptDom;
 using SQLCover.Gateway;
 using SQLCover.Objects;
 using SQLCover.Source;
@@ -10,15 +9,26 @@ namespace SQLCover.Trace
     {
         public TraceController GetTraceController(DatabaseGateway gateway, string databaseName, TraceControllerType type)
         {
+
+         
             switch(type)
             {
                 case TraceControllerType.Azure:
                     return new AzureTraceController(gateway, databaseName);
                 case TraceControllerType.Sql:
                     return new SqlTraceController(gateway, databaseName);
+                case TraceControllerType.SqlLocalDb:
+                    return new SqlLocalDbTraceController(gateway, databaseName);
             }
 
             var source = new DatabaseSourceGateway(gateway);
+
+            if (LooksLikeLocalDb(gateway.DataSource))
+            {
+                return new SqlLocalDbTraceController(gateway, databaseName);
+            }
+
+
             var isAzure = source.IsAzure();
 
             if(!isAzure)
@@ -30,6 +40,11 @@ namespace SQLCover.Trace
 
             return new AzureTraceController(gateway, databaseName);
         }
+
+        private bool LooksLikeLocalDb(string dataSource)
+        {
+            return dataSource.ToLowerInvariant().Contains("(localdb)");
+        }
     }
 
     public enum TraceControllerType
@@ -37,6 +52,7 @@ namespace SQLCover.Trace
         Default,
         Sql,
         Azure,
-        Exp
+        Exp,
+        SqlLocalDb
     }
 }
