@@ -1,7 +1,6 @@
-﻿using System;
-using System.Data;
-using System.Data.SqlClient;
+﻿using System.Data;
 using System.Xml;
+using System.Data.SqlClient;
 
 namespace SQLCover.Gateway
 {

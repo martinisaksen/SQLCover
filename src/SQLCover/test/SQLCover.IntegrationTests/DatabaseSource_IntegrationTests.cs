@@ -1,6 +1,4 @@
-﻿using System;
-using System.Linq;
-using System.Runtime.Remoting;
+﻿using System.Linq;
 using NUnit.Framework;
 using SQLCover.Gateway;
 using SQLCover.Source;
